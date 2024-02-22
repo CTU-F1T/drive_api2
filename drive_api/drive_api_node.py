@@ -91,6 +91,8 @@ except ImportError:
 #   float64 z
 from geometry_msgs.msg import Twist
 
+from ackermann_msgs.msg import AckermannDriveStamped
+
 
 class SteeringDirection(IntEnum):
     LEFT = 2
@@ -106,6 +108,7 @@ class RunMode(IntEnum):
     BASIC = 0
     BASIC_VESC = 1
     SIMULATION = 2
+    ACKERMANN_DRIVE = 3
 
     @classmethod
     def has_name(cls, name: str) -> bool:
@@ -156,6 +159,7 @@ class DriveApiNode(Node):
         self.msg_vesc = Float64()
         self.msg_cmd_vel = Twist()
         self.msg_servo = Float64()
+        self.msg_ackermann = AckermannDriveStamped()
         self.eStop: bool = True
         self.run_mode: RunMode = RunMode[self.get_parameter('run_mode').value.upper()]
 
@@ -178,6 +182,9 @@ class DriveApiNode(Node):
         elif self.run_mode == RunMode.SIMULATION:
             self.pub_cmd_vel = self.create_publisher(msg_type=Twist, topic='cmd_vel', qos_profile=1)
             pub_function = self.publish_sim
+        elif self.run_mode == RunMode.ACKERMANN_DRIVE:
+            self.pub_ackermann = self.create_publisher(msg_type=AckermannDriveStamped, topic='drive', qos_profile=1)
+            pub_function = self.publish_ackermann
         else:
             raise InitError('unknown run mode')
 
@@ -623,6 +630,13 @@ class DriveApiNode(Node):
         """
         self.pub_cmd_vel.publish(self.msg_cmd_vel)
 
+    def publish_ackermann(self):
+        """Publish currently stored variables.
+
+        Note: Used only in ACKERMANN_DRIVE mode.
+        """
+        self.pub_ackermann.publish(self.msg_ackermann)
+
     def set_speed(self, speed: float, direction: ThrottleDirection, control_mode: ControlMode = ControlMode.LEGACY):
         """Set the car speed at desired value with given direction.
 
@@ -761,6 +775,10 @@ class DriveApiNode(Node):
 
             if self.run_mode == RunMode.SIMULATION:
                 self.msg_cmd_vel.linear.x = speed
+                return True
+
+            if self.run_mode == RunMode.ACKERMANN_DRIVE:
+                self.msg_ackermann.drive.speed = speed
                 return True
 
             if self.run_mode == RunMode.BASIC_VESC:
@@ -911,6 +929,10 @@ class DriveApiNode(Node):
                     self.reset_steer()
                 else:
                     self.msg_cmd_vel.angular.z = steer if direction == SteeringDirection.LEFT else -steer
+                return True
+
+            if self.run_mode == RunMode.ACKERMANN_DRIVE:
+                self.msg_ackermann.drive.steering_angle = steer
                 return True
 
             if steer == 0:
