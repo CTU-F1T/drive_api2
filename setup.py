@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = 'drive_api'
+package_name = 'drive_api2'
 
 setup(
     name=package_name,
@@ -33,7 +33,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'drive_api_node = drive_api.drive_api_node:main',
+            'drive_api_node = drive_api2.drive_api_node:main',
         ],
     },
 )
